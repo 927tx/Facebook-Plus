@@ -57,6 +57,7 @@ extern NSString *const FBPKeyNoStoryPYMK;       // Remove PYMK from the story tr
 extern NSString *const FBPKeyNoThreads;         // Remove the Threads promo unit
 extern NSString *const FBPKeyNoGroupSuggestions;// Remove "groups you should join"
 extern NSString *const FBPKeyNoSuggestedPages;  // Remove "suggested pages for you"
+extern NSString *const FBPKeyNoSurveys;         // Remove "are you interested in this post?" surveys
 
 // Confirmations (opt-in: guard an action behind a prompt)
 extern NSString *const FBPKeyConfirmComment;    // Confirm before posting a comment
@@ -68,6 +69,10 @@ extern NSString *const FBPKeyConfirmPost;       // Confirm before publishing a p
 // Downloads
 extern NSString *const FBPKeyReelsDownloaderEnabled;
 extern NSString *const FBPKeyStoryDownloaderEnabled;
+/// Ask which quality to save when Facebook serves more than one rendition.
+/// Off means "take the best one and start", which is what the downloaders did
+/// before the picker existed.
+extern NSString *const FBPKeyDownloadQualityPicker;
 
 // Reels
 extern NSString *const FBPKeyReelsHideOverlay;  // Strip the Reels overlay (always on; no toggle)
@@ -86,6 +91,21 @@ extern NSString *const FBPKeyFontScale;         // Custom-font size multiplier (
 
 // Links
 extern NSString *const FBPKeyLinksInSafari;     // Open external links in the default browser
+
+// Diagnostics
+extern NSString *const FBPKeyLogFeedUnits;      // os_log the live feed-unit token set
+/// os_log what Facebook actually serves for a video on a download tap — the
+/// DASH manifest's representations and labels, and whether any of them is muxed.
+/// Answers whether a DASH quality tier would be worth building.
+extern NSString *const FBPKeyLogDownloadQualities;
+// Sideload compatibility
+/// Pin keychain calls that need it to the probed access group (see
+/// src/PluginsInject/SecRebinds.xm). On by default; turning it off disables the
+/// SecItem* rewriting entirely, which is the A/B for a keychain-related crash.
+/// SecRebinds.xm is shared with FBPNotifyBridge.dylib, which cannot see this
+/// header, so it reads the raw @c "keychainRebind" key out of the defaults
+/// suite — keep the two in step.
+extern NSString *const FBPKeyKeychainRebind;
 
 // Other
 extern NSString *const FBPKeyNotifyUpdates;

@@ -28,35 +28,39 @@
   <tbody>
     <tr>
       <td nowrap>📰 <b>Feed</b></td>
-      <td>Remove Ads & Sponsored Posts (feed, video, stories & <b>Marketplace</b>)<br>Hide "People you may know", Group & Page suggestions<br>Remove Reels carousel, Threads promo & <b>Stories</b> (tray + single cards)</td>
+      <td>Remove ads &amp; sponsored posts — feed, video, Stories and Marketplace<br>Hide "People you may know", Group and Page suggestions<br>Hide the Reels carousel, Threads promo and Stories tray<br>Remove survey prompts ("Are you interested in this post?")</td>
+    </tr>
+    <tr>
+      <td nowrap>⬇️ <b>Downloads</b></td>
+      <td>Choose a quality before saving — every rung the video actually offers, not just HD/SD<br>Lossless merge of Facebook's separate video and audio streams<br>Download manager with progress, cancel and retry</td>
     </tr>
     <tr>
       <td nowrap>✅ <b>Confirmations</b></td>
-      <td>Opt-in prompts that catch accidental taps — a prompt appears before the action, Cancel stops it:<br><b>Like</b> (feed & Reels), <b>Comment</b>, <b>Share</b>, <b>Post</b>, <b>Friend request</b>, <b>Follow / Join</b></td>
+      <td>Opt-in prompts that catch accidental taps, with Cancel to stop the action<br>Covers Like, Comment, Share, Post, Friend request and Follow / Join</td>
     </tr>
     <tr>
       <td nowrap>🎬 <b>Reels</b></td>
-      <td><b>Hide overlay (cinema mode)</b> — one tap strips likes, comments, share & caption <em>and</em> fades the bottom tab bar, leaving just the clean video<br>Save <b>Reels</b> to Photos</td>
+      <td>Cinema mode — one tap hides the overlay and the tab bar<br>Save Reels to Photos</td>
     </tr>
     <tr>
       <td nowrap>📖 <b>Stories</b></td>
-      <td>Watch stories anonymously (Ghost Mode)<br>Disable auto-advance<br>Hide Story Suggestions<br>Save <b>Stories</b> (video & photo) to Photos</td>
+      <td>Ghost Mode — watch without being seen<br>Disable auto-advance and hide Story suggestions<br>Save Stories, video or photo, to Photos</td>
     </tr>
     <tr>
-      <td nowrap>📞 <b>Calls & Privacy</b></td>
-      <td><b>Incoming Call Blocker</b> — silently block incoming VoIP / Messenger calls inside Facebook without disturbing your app experience</td>
+      <td nowrap>📞 <b>Calls</b></td>
+      <td>Silently block incoming VoIP and Messenger calls</td>
     </tr>
     <tr>
       <td nowrap>🧭 <b>Links</b></td>
-      <td>Open external links in your <b>default browser</b> instead of the in-app browser<br><b>Open in Facebook</b> Safari extension — reopens facebook.com links from Safari in the app, routing directly to the <b>exact Reel / post / photo / story destination</b> (including FaceWeb deep links)</td>
+      <td>Open external links in your default browser<br>"Open in Facebook" Safari extension — reopens facebook.com links in the app, at the exact destination</td>
     </tr>
     <tr>
       <td nowrap>🎨 <b>Appearance</b></td>
-      <td><b>OLED Dark Mode</b> (true black — preserves post dividers, rounded avatars & status bar legibility)<br>Custom App-Icon Picker with multiple alternate icons<br><b>Custom Fonts</b> — replace the app's text font with a bundled or imported <code>.ttf</code>/<code>.otf</code>, with an adjustable size</td>
+      <td>OLED dark mode (true black)<br>Alternate app icons<br>Custom fonts from a bundled or imported <code>.ttf</code>/<code>.otf</code>, with adjustable size</td>
     </tr>
     <tr>
       <td nowrap>🔔 <b>Updates</b></td>
-      <td>Built-in <b>update checker</b> — notified in-app when a new version ships, with the changelog and one-tap download from GitHub or Telegram<br>Manual re-check from <b>Settings → Check for Update</b></td>
+      <td>In-app update checker with changelog and one-tap download</td>
     </tr>
   </tbody>
 </table>
@@ -146,7 +150,11 @@ This project requires [Theos](https://theos.dev) to build. Ensure you have it in
      - merges any custom app icons (`fbplus_*.png` in `resources/logo/`) into
      `CFBundleAlternateIcons` via `scripts/icon_plist.py`, preserving
      Facebook's native icons;
-     - fakesigns every injected binary for sideloading.
+     - fakesigns every injected binary for sideloading;
+     - builds `FBPNotifyBridge/src` and adds the resulting dylib to the app's
+       `NotificationServiceExtension.appex` (see
+       [below](#-notifications-on-sideloaded-builds));
+       skip it with `NSE_BRIDGE=0 ./build.sh`.
 
 
 <details>
@@ -164,9 +172,46 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 
 ---
 
+## 🔔 Notifications on sideloaded builds
+
+Sideloaded builds show *"You have a new notification"* instead of the real text
+(issues [#12](../../issues/12), [#13](../../issues/13)). Facebook sends a stub
+payload and lets `NotificationServiceExtension.appex` expand it — but that
+extension can only do so if it can find your session, and on a re-signed build it
+cannot: the session lives in Meta's App Groups (`group.com.facebook.*`) and
+keychain group (`T84QZS65DQ.platformFamily`), and Apple will never authorize
+another team's identifiers for your certificate.
+
+The released IPA carries **`FBPNotifyBridge.dylib`** inside that extension: a
+~70 KB dylib that applies the same container and keychain redirects the main app
+already uses, so both processes read and write the same place. **Confirmed
+working on a device**, with detailed notifications on the lock screen. Full
+write-up in **[`FBPNotifyBridge/README.md`](FBPNotifyBridge/README.md)**.
+
+What this means for you:
+
+- **Your certificate needs at least one registered App Group.** Without one
+  there is no container to redirect into and the bridge does nothing.
+  **[Check your certificate in a minute](../../wiki/Check-App-Groups-Support)**
+  — sign and open a small checker app and it tells you outright, before you
+  sign anything else.
+- **Feather's "Merge Entitlements" is optional.** Notifications are confirmed
+  working without it, and as of Feather v2.9.0 the switch is not in any released
+  build. Enable it if your build offers it; otherwise a certificate with an App
+  Group is enough. "Inject into app extensions" is not needed either — the
+  bridge already ships inside the IPA.
+- **Messenger messages are out of scope**, being end-to-end encrypted with
+  device-bound keys the bridge cannot reach. The target is **Facebook**
+  notifications: likes, comments, tags, friend requests.
+- **TrollStore users need none of this** — it preserves the original
+  entitlements, so notifications already work.
+
+---
+
 ## 🏗️ Project Architecture
 
 ```text
+├── FBPNotifyBridge     # Slim dylib injected into NotificationServiceExtension.appex (session bridge)
 ├── Localizations       # Translations (ar, bn, de, es, fr, hi, id, it, ja, ko, pl, pt-BR, ru, tr, vi, zh-Hans, zh-Hant)
 ├── OpenInFacebookSafariExtension  # Safari web extension built into PlugIns ("Open in Facebook")
 ├── resources           # Assets (App icons, SVGs, and asset bundles)
@@ -183,7 +228,8 @@ This writes a per-machine `.clangd` (with your theos path and SDK baked in) and 
 │   │   ├── AppIcons    # Custom app-icon picker logic
 │   │   ├── Calls       # Incoming Call Blocker (PushKit & CallKit interceptors)
 │   │   ├── Confirmations # Opt-in commit-level confirmations (comment, share, post, friend, follow)
-│   │   ├── Downloads   # Reel & Story media downloaders (save to Photos)
+│   │   ├── Downloads   # Quality picker, DASH manifest reader, two-stream fetch,
+│   │   │               # lossless mux, AV1→HEVC conversion, download manager
 │   │   ├── Feed        # Feed-related hooks (suggestions, Reels, Stories removal)
 │   │   ├── Fonts       # Custom UI font replacement (Core Text registration + picker)
 │   │   ├── Language    # UI language override hooks

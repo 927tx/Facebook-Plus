@@ -15,6 +15,8 @@
 #import "FBPSheet.h"
 #import "FBPToast.h"
 #import "FBPAppIconController.h"
+#import "FBPDownloadManagerController.h"
+#import "FBPDownloadStore.h"
 #import "FBPFontController.h"
 #import "FBPLanguageController.h"
 #import "FBPWelcomeController.h"
@@ -56,6 +58,7 @@ static NSString *const kActionReset       = @"reset";
 static NSString *const kActionSuspend     = @"suspend";
 static NSString *const kActionLanguage    = @"language";
 static NSString *const kActionCheckUpdate = @"checkUpdate";
+static NSString *const kActionDownloads   = @"downloads";
 
 static NSString *const kCellIdentifier = @"fbp.settings.row";
 static NSString *const kTelegramURL    = @"https://t.me/ReFacebookPlus";
@@ -305,6 +308,7 @@ static UIImage *FBPSettingsIcon(NSString *name) {
                            [row[kRowKey] isEqualToString:kActionAppIcon] ||
                            [row[kRowKey] isEqualToString:kActionFonts] ||
                            [row[kRowKey] isEqualToString:kActionLanguage] ||
+                           [row[kRowKey] isEqualToString:kActionDownloads] ||
                            [row[kRowKey] isEqualToString:kActionWelcome];
         if (showChevron) {
             UIImageView *chevron = [[UIImageView alloc] initWithImage:
@@ -370,6 +374,25 @@ static NSDictionary *FBPSection(NSString *footer, NSArray *rows) {
     return s;
 }
 
+/// The download manager row, with the number of running downloads as its
+/// trailing value.
+///
+/// Built by its own function rather than inline because the count is read at
+/// build time and the category list is rebuilt in -viewWillAppear, so walking
+/// back into Settings from anywhere shows a current number.
+static NSDictionary *FBPDownloadManagerRow(void) {
+    NSMutableDictionary *row =
+        [FBPActionRow(kActionDownloads, FBPL(@"download.manager.title"),
+                      FBPL(@"download.manager.rowDesc"), @"arrow.down.circle", NO) mutableCopy];
+
+    NSUInteger active = FBPDownloadStore.shared.activeCount;
+    if (active > 0) {
+        row[kRowValue] = [NSString stringWithFormat:FBPL(@"download.manager.activeCount"),
+                                                    (long)active];
+    }
+    return row;
+}
+
 #pragma mark - Category definitions
 
 /// The six categories; each has a title, summary, menu glyph, and the grouped
@@ -391,6 +414,7 @@ static NSArray<NSDictionary *> *FBPCategories(void) {
                 FBPSwitchRow(FBPKeyNoPYMK, FBPL(@"row.nopymk.title"), nil, @"people"),
                 FBPSwitchRow(FBPKeyNoGroupSuggestions, FBPL(@"row.nogroups.title"), nil, @"group"),
                 FBPSwitchRow(FBPKeyNoSuggestedPages, FBPL(@"row.nosuggestedpages.title"), nil, @"group"),
+                FBPSwitchRow(FBPKeyNoSurveys, FBPL(@"row.nosurveys.title"), FBPL(@"row.nosurveys.desc"), @"magic"),
             ]),
         ]},
         @{ kRowTitle : FBPL(@"cat.confirm.title"), kRowDesc : FBPL(@"cat.confirm.summary"),
@@ -414,9 +438,16 @@ static NSArray<NSDictionary *> *FBPCategories(void) {
         ]},
         @{ kRowTitle : FBPL(@"cat.downloads.title"), kRowDesc : FBPL(@"cat.downloads.summary"),
            kRowIcon : @"download", kRowCategory : @[
+            // The manager sits at the top of the category, above the switches
+            // that decide whether downloads happen at all: it is the one row
+            // here the user comes back to repeatedly rather than sets once.
+            FBPSection(nil, @[
+                FBPDownloadManagerRow(),
+            ]),
             FBPSection(nil, @[
                 FBPSwitchRow(FBPKeyReelsDownloaderEnabled, FBPL(@"row.downloadreels.title"), FBPL(@"row.downloadreels.desc"), @"download"),
                 FBPSwitchRow(FBPKeyStoryDownloaderEnabled, FBPL(@"row.downloadstories.title"), FBPL(@"row.downloadstories.desc"), @"download"),
+                FBPSwitchRow(FBPKeyDownloadQualityPicker, FBPL(@"row.downloadquality.title"), FBPL(@"row.downloadquality.desc"), @"arrow.down.circle"),
             ]),
         ]},
         @{ kRowTitle : FBPL(@"cat.appearance.title"), kRowDesc : FBPL(@"cat.appearance.summary"),
@@ -439,6 +470,18 @@ static NSArray<NSDictionary *> *FBPCategories(void) {
                 FBPSwitchRow(FBPKeyAutoClearCache, FBPL(@"row.autoclear.title"), nil, @"arrow.triangle.2.circlepath"),
                 FBPActionRow(kActionClearCache, FBPL(@"row.clearcache.title"), nil, @"trash.fill", NO),
                 FBPActionRow(kActionCheckUpdate, FBPL(@"row.checkupdate.title"), FBPL(@"row.checkupdate.desc"), @"arrow.down.circle", NO),
+            ]),
+            FBPSection(FBPL(@"footer.logfeedunits"), @[
+                FBPSwitchRow(FBPKeyLogFeedUnits, FBPL(@"row.logfeedunits.title"),
+                             FBPL(@"row.logfeedunits.desc"), @"ladybug.fill"),
+            ]),
+            FBPSection(FBPL(@"footer.logdownloadqualities"), @[
+                FBPSwitchRow(FBPKeyLogDownloadQualities,
+                             FBPL(@"row.logdownloadqualities.title"),
+                             FBPL(@"row.logdownloadqualities.desc"), @"ladybug.fill"),
+            ]),
+            FBPSection(nil, @[
+                FBPSwitchRow(FBPKeyKeychainRebind, FBPL(@"row.keychainrebind.title"), FBPL(@"row.keychainrebind.desc"), @"key.fill"),
             ]),
             FBPSection(nil, @[
                 FBPActionRow(kActionWelcome, FBPL(@"row.welcome.title"), nil, @"hand.wave.fill", NO),
@@ -503,6 +546,9 @@ static NSArray<NSDictionary *> *FBPCategories(void) {
         [self.navigationController pushViewController:[[FBPFontController alloc] init] animated:YES];
     } else if ([action isEqualToString:kActionLanguage]) {
         [self.navigationController pushViewController:[[FBPLanguageController alloc] init] animated:YES];
+    } else if ([action isEqualToString:kActionDownloads]) {
+        [self.navigationController
+            pushViewController:[[FBPDownloadManagerController alloc] init] animated:YES];
     } else if ([action isEqualToString:kActionCheckUpdate]) {
         [FBPUpdateChecker checkManuallyFromViewController:self];
     } else if ([action isEqualToString:kActionWelcome]) {

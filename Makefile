@@ -31,7 +31,9 @@ FacebookPlus_FILES = \
 	src/Features/AppIcons/FBPAppIconController.m \
 	src/Features/Language/FBPLanguageController.m \
 	src/Features/Feed/FBPFeedHooks.xm \
+	src/Features/Feed/FBPFeedSurveyHooks.xm \
 	src/Features/Ads/FBPAdsHooks.xm \
+	src/Features/Reels/FBPReelsSurveyHooks.xm \
 	src/Features/Stories/FBPStoryHooks.xm \
 	src/Features/LikeConfirmation/FBPConfirmHooks.xm \
 	src/Features/Confirmations/FBPActionConfirm.mm \
@@ -39,6 +41,14 @@ FacebookPlus_FILES = \
 	src/Features/OLED/FBPOLEDHooks.xm \
 	src/Features/Fonts/FBPFontHooks.xm \
 	src/Features/Fonts/FBPFontController.m \
+	src/Features/Downloads/FBPDashManifest.m \
+	src/Features/Downloads/FBPDownloadVariants.m \
+	src/Features/Downloads/FBPMediaMuxer.m \
+	src/Features/Downloads/FBPDav1dBridge.m \
+	src/Features/Downloads/FBPMediaConverter.m \
+	src/Features/Downloads/FBPDashDownload.m \
+	src/Features/Downloads/FBPDownloadStore.m \
+	src/Features/Downloads/FBPDownloadManagerController.m \
 	src/Features/Downloads/FBPReelsDownloader.xm \
 	src/Features/Downloads/FBPStoryDownloader.xm \
 	src/Features/Links/FBPLinkHooks.xm \
@@ -64,7 +74,10 @@ FacebookPlus_CFLAGS  = -fobjc-arc -Wno-deprecated-declarations \
 	-Isrc/Features/Fonts -Isrc/Features/Language -Isrc/Features/LikeConfirmation \
 	-Isrc/Features/Links -Isrc/Features/OLED -Isrc/Features/Onboarding \
 	-Isrc/Features/Stories -Isrc/Features/Update -Isrc/PluginsInject
-FacebookPlus_FRAMEWORKS = UIKit Foundation Photos QuartzCore CoreGraphics CoreText AVFoundation CoreMedia Security PushKit CallKit
+# VideoToolbox and CoreVideo are for FBPMediaConverter: the AV1-decoder
+# capability probe calls VTDecompressionSessionCreate directly, and the decode
+# side hands back CVPixelBuffers.
+FacebookPlus_FRAMEWORKS = UIKit Foundation Photos QuartzCore CoreGraphics CoreText AVFoundation CoreMedia CoreVideo VideoToolbox Security PushKit CallKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
